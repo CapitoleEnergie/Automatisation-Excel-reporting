@@ -46,6 +46,20 @@ jobs:
         if: ${{ inputs.period == 'current' }}
         run: python -m src.excel_plan
 
+      - name: Send plan to Power Automate
+        if: ${{ inputs.period == 'current' }}
+        env:
+          POWER_AUTOMATE_URL: ${{ secrets.POWER_AUTOMATE_URL }}
+        run: |
+          test -n "$POWER_AUTOMATE_URL" || (echo "Missing POWER_AUTOMATE_URL secret" && exit 1)
+          RESPONSE=$(curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Content-Type: application/json" \
+            --data-binary @excel-write-plan.json \
+            "$POWER_AUTOMATE_URL")
+          echo "Power Automate response:"
+          echo "$RESPONSE"
+
       - name: Upload results
         uses: actions/upload-artifact@v4
         with:
