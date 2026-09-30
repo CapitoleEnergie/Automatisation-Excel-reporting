@@ -1,0 +1,51 @@
+name: Salesforce readonly extract
+
+on:
+  workflow_dispatch:
+    inputs:
+      period:
+        description: Exercice a extraire
+        required: true
+        default: both
+        type: choice
+        options:
+          - current
+          - previous
+          - both
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Salesforce extractor
+        env:
+          SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_CLIENT_SECRET: ${{ secrets.SF_CLIENT_SECRET }}
+          SF_API_VERSION: ${{ vars.SF_API_VERSION || 'v66.0' }}
+        run: python -m src.main --period "${{ inputs.period }}"
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: salesforce-results
+          path: results.json
+          if-no-files-found: error
+          retention-days: 7
