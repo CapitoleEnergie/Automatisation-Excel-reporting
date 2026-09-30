@@ -26,6 +26,21 @@ def clean_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{k: v for k, v in row.items() if k != "attributes"} for row in records]
 
 
+def regroup_marketing_sources(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[int, int, str], float] = {}
+
+    for row in rows:
+        source = row.get("source") or ""
+        category = "Marketing" if str(source).startswith("Marketing -") else "Non-Marketing"
+        key = (int(row["annee"]), int(row["mois"]), category)
+        grouped[key] = grouped.get(key, 0.0) + float(row.get("ca_signe") or 0)
+
+    return [
+        {"annee": year, "mois": month, "source": source, "ca_signe": total}
+        for (year, month, source), total in sorted(grouped.items())
+    ]
+
+
 def run_queries(
     client: SalesforceClient,
     queries: dict[str, str],
@@ -34,8 +49,12 @@ def run_queries(
     metrics: dict[str, Any] = {}
     for name, soql in queries.items():
         print(f"[READ] {prefix} - {name}")
+        rows = clean_records(client.query(soql))
+        if name == "par_source":
+            rows = regroup_marketing_sources(rows)
+
         metrics[name] = {
-            "rows": clean_records(client.query(soql)),
+            "rows": rows,
             "soql": soql,
         }
     return metrics
