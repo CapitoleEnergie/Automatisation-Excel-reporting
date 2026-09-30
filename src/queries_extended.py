@@ -92,7 +92,7 @@ def ca_signe_all_deals_by_close_date(
     sales_name: str | None = None,
     real_amount: bool = False,
 ) -> str:
-    amount_field = "Montant_reel__c" if real_amount else "Amount"
+    amount_field = "Amount"
     owner_filter = f"\n  AND Owner.Name = '{sales_name}'" if sales_name else ""
     return f"""
 SELECT CALENDAR_YEAR(CloseDate) annee,
@@ -166,7 +166,7 @@ ApporteurAffaire__c = '{APPORTEUR_AFFAIRE_ID}'
 
 def analyse_type(period: FiscalPeriod) -> str:
     return f"""
-SELECT Type categorie, SUM(Amount) ca_signe, SUM(Montant_reel__c) ca_reel
+SELECT Type categorie, SUM(Amount) ca_signe, SUM(Amount) ca_reel
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
 GROUP BY Type
@@ -176,7 +176,7 @@ ORDER BY Type
 
 def analyse_source(period: FiscalPeriod) -> str:
     return f"""
-SELECT Account.AccountSource source, SUM(Amount) ca_signe, SUM(Montant_reel__c) ca_reel
+SELECT Account.AccountSource source, SUM(Amount) ca_signe, SUM(Amount) ca_reel
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
 GROUP BY Account.AccountSource
@@ -186,7 +186,7 @@ ORDER BY Account.AccountSource
 
 def analyse_energie(period: FiscalPeriod) -> str:
     return f"""
-SELECT Energie__c energie, SUM(Amount) ca_signe, SUM(Montant_reel__c) ca_reel
+SELECT Energie__c energie, SUM(Amount) ca_signe, SUM(Amount) ca_reel
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
 GROUP BY Energie__c
@@ -196,7 +196,7 @@ ORDER BY Energie__c
 
 def analyse_ecart(period: FiscalPeriod) -> str:
     return f"""
-SELECT SUM(Montant_reel__c) ca_reel, SUM(Amount) ca_estime
+SELECT SUM(Amount) ca_reel, SUM(Amount) ca_estime
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
 """.strip()
@@ -206,7 +206,7 @@ def analyse_annee_debut_contrat(period: FiscalPeriod) -> str:
     return f"""
 SELECT CALENDAR_YEAR(Date_min_de_debut_souhaitee__c) annee_debut,
        SUM(Amount) ca_signe,
-       SUM(Montant_reel__c) ca_reel
+       SUM(Amount) ca_reel
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
 GROUP BY CALENDAR_YEAR(Date_min_de_debut_souhaitee__c)
@@ -237,11 +237,11 @@ WHERE {analyse_base_filter(period)}
 
 def analyse_top10_clients(period: FiscalPeriod) -> str:
     return f"""
-SELECT Account.Name compte, SUM(Montant_reel__c) ca_reel
+SELECT Account.Name compte, SUM(Amount) ca_reel
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
 GROUP BY Account.Name
-ORDER BY SUM(Montant_reel__c) DESC
+ORDER BY SUM(Amount) DESC
 LIMIT 10
 """.strip()
 
