@@ -166,31 +166,54 @@ ApporteurAffaire__c = '{APPORTEUR_AFFAIRE_ID}'
 
 def analyse_type(period: FiscalPeriod) -> str:
     return f"""
-SELECT Type categorie, SUM(Amount) ca_signe, SUM(Amount) ca_reel
+SELECT CALENDAR_YEAR(Date_de_signature__c) annee,
+       CALENDAR_MONTH(Date_de_signature__c) mois,
+       Type categorie,
+       SUM(Amount) ca_signe
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
-GROUP BY Type
-ORDER BY Type
+GROUP BY CALENDAR_YEAR(Date_de_signature__c),
+         CALENDAR_MONTH(Date_de_signature__c),
+         Type
+ORDER BY CALENDAR_YEAR(Date_de_signature__c),
+         CALENDAR_MONTH(Date_de_signature__c),
+         Type
 """.strip()
 
 
 def analyse_source(period: FiscalPeriod) -> str:
+    # Le regroupement Marketing / Non-Marketing est fait en Python après extraction,
+    # afin de conserver une requête SOQL simple et fiable.
     return f"""
-SELECT Account.AccountSource source, SUM(Amount) ca_signe, SUM(Amount) ca_reel
+SELECT CALENDAR_YEAR(Date_de_signature__c) annee,
+       CALENDAR_MONTH(Date_de_signature__c) mois,
+       Account.AccountSource source,
+       SUM(Amount) ca_signe
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
-GROUP BY Account.AccountSource
-ORDER BY Account.AccountSource
+GROUP BY CALENDAR_YEAR(Date_de_signature__c),
+         CALENDAR_MONTH(Date_de_signature__c),
+         Account.AccountSource
+ORDER BY CALENDAR_YEAR(Date_de_signature__c),
+         CALENDAR_MONTH(Date_de_signature__c),
+         Account.AccountSource
 """.strip()
 
 
 def analyse_energie(period: FiscalPeriod) -> str:
     return f"""
-SELECT Energie__c energie, SUM(Amount) ca_signe, SUM(Amount) ca_reel
+SELECT CALENDAR_YEAR(Date_de_signature__c) annee,
+       CALENDAR_MONTH(Date_de_signature__c) mois,
+       Energie__c energie,
+       SUM(Amount) ca_signe
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
-GROUP BY Energie__c
-ORDER BY Energie__c
+GROUP BY CALENDAR_YEAR(Date_de_signature__c),
+         CALENDAR_MONTH(Date_de_signature__c),
+         Energie__c
+ORDER BY CALENDAR_YEAR(Date_de_signature__c),
+         CALENDAR_MONTH(Date_de_signature__c),
+         Energie__c
 """.strip()
 
 
@@ -205,8 +228,8 @@ WHERE {analyse_base_filter(period)}
 def analyse_annee_debut_contrat(period: FiscalPeriod) -> str:
     return f"""
 SELECT CALENDAR_YEAR(Date_min_de_debut_souhaitee__c) annee_debut,
-       SUM(Amount) ca_signe,
-       SUM(Amount) ca_reel
+       COUNT(Id) nb_deals,
+       SUM(Amount) ca_signe
 FROM Opportunity
 WHERE {analyse_base_filter(period)}
 GROUP BY CALENDAR_YEAR(Date_min_de_debut_souhaitee__c)
