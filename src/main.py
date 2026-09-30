@@ -14,6 +14,11 @@ from .queries import (
     previous_fiscal_period,
     resultat_vente_interne_queries,
 )
+from .queries_extended import (
+    analyse_ca_signe_queries,
+    gestion_appels_offres_queries,
+    kpi_par_sales_queries,
+)
 from .salesforce import SalesforceClient
 
 
@@ -21,20 +26,52 @@ def clean_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{k: v for k, v in row.items() if k != "attributes"} for row in records]
 
 
-def extract_period(client: SalesforceClient, period: FiscalPeriod) -> dict[str, Any]:
+def run_queries(
+    client: SalesforceClient,
+    queries: dict[str, str],
+    prefix: str,
+) -> dict[str, Any]:
     metrics: dict[str, Any] = {}
-    for name, soql in resultat_vente_interne_queries(period).items():
-        print(f"[READ] {period.label} - {name}")
+    for name, soql in queries.items():
+        print(f"[READ] {prefix} - {name}")
         metrics[name] = {
             "rows": clean_records(client.query(soql)),
             "soql": soql,
         }
+    return metrics
+
+
+def extract_period(client: SalesforceClient, period: FiscalPeriod) -> dict[str, Any]:
+    sales_metrics: dict[str, Any] = {}
+    for sales_name, queries in kpi_par_sales_queries(period).items():
+        sales_metrics[sales_name] = run_queries(
+            client,
+            queries,
+            f"{period.label} - KPI PAR SALES - {sales_name}",
+        )
 
     return {
         "fiscal_year": period.label,
         "start": period.start.isoformat(),
         "end": period.end.isoformat(),
-        "metrics": metrics,
+        "sections": {
+            "RESULTAT VENTE INTERNE": run_queries(
+                client,
+                resultat_vente_interne_queries(period),
+                f"{period.label} - RESULTAT VENTE INTERNE",
+            ),
+            "GESTION APPELS D'OFFRES": run_queries(
+                client,
+                gestion_appels_offres_queries(period),
+                f"{period.label} - GESTION APPELS D'OFFRES",
+            ),
+            "KPI PAR SALES": sales_metrics,
+            "ANALYSE CA SIGNE": run_queries(
+                client,
+                analyse_ca_signe_queries(period),
+                f"{period.label} - ANALYSE CA SIGNE",
+            ),
+        },
     }
 
 
@@ -60,7 +97,12 @@ def main() -> None:
     payload = {
         "generated_at": datetime.now().astimezone().isoformat(),
         "mode": "READ_ONLY",
-        "scope": "RESULTAT VENTE INTERNE",
+        "scope": [
+            "RESULTAT VENTE INTERNE",
+            "GESTION APPELS D'OFFRES",
+            "KPI PAR SALES",
+            "ANALYSE CA SIGNE",
+        ],
         "periods": [extract_period(client, period) for period in selected],
     }
 
