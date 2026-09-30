@@ -42,10 +42,16 @@ jobs:
           SF_API_VERSION: ${{ vars.SF_API_VERSION || 'v66.0' }}
         run: python -m src.main --period "${{ inputs.period }}"
 
+      - name: Build Excel dry-run plan
+        if: ${{ inputs.period == 'current' }}
+        run: python -m src.excel_plan
+
       - name: Upload results
         uses: actions/upload-artifact@v4
         with:
           name: salesforce-results
-          path: results.json
+          path: |
+            results.json
+            excel-write-plan.json
           if-no-files-found: error
           retention-days: 7
