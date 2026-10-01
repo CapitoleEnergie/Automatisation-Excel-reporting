@@ -1,6 +1,9 @@
 name: Salesforce readonly extract
 
 on:
+  schedule:
+    - cron: "0,30 9-19 * * 1-5"
+      timezone: "Europe/Paris"
   workflow_dispatch:
     inputs:
       period:
@@ -20,6 +23,8 @@ jobs:
   extract:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PERIOD: ${{ github.event_name == 'schedule' && 'current' || inputs.period }}
 
     steps:
       - name: Checkout
@@ -40,14 +45,14 @@ jobs:
           SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
           SF_CLIENT_SECRET: ${{ secrets.SF_CLIENT_SECRET }}
           SF_API_VERSION: ${{ vars.SF_API_VERSION || 'v66.0' }}
-        run: python -m src.main --period "${{ inputs.period }}"
+        run: python -m src.main --period "$PERIOD"
 
       - name: Build Excel dry-run plan
-        if: ${{ inputs.period == 'current' }}
+        if: ${{ env.PERIOD == 'current' }}
         run: python -m src.excel_plan
 
       - name: Send plan to Power Automate
-        if: ${{ inputs.period == 'current' }}
+        if: ${{ env.PERIOD == 'current' }}
         env:
           POWER_AUTOMATE_URL: ${{ secrets.POWER_AUTOMATE_URL }}
         run: |
