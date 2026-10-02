@@ -2,8 +2,12 @@ name: Salesforce readonly extract
 
 on:
   schedule:
-    # UTC. La garde ci-dessous filtre sur l'heure Europe/Paris (09:00-19:35).
-    - cron: "0,30 6-18 * * 1-5"
+    # UTC. Runs decales pour eviter les pics GitHub en debut d'heure.
+    # La garde filtre ensuite sur l'heure Europe/Paris.
+    - cron: "7,37 6-18 * * 1-5"
+    # Dernier run cible 19:30 Paris : ete (UTC+2) et hiver (UTC+1).
+    - cron: "30 17 * * 1-5"
+    - cron: "30 18 * * 1-5"
   workflow_dispatch:
     inputs:
       period:
@@ -42,10 +46,10 @@ jobs:
           fi
           H=$(TZ=Europe/Paris date +%H%M)
           echo "Heure Paris : $H"
-          if [ "$H" -ge 900 ] && [ "$H" -le 1935 ]; then
+          if [ "$H" -ge 900 ] && [ "$H" -le 1934 ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Hors plage 09:00-19:35 Paris : arret sans action."
+            echo "Hors plage 09:00-19:34 Paris : arret sans action."
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
