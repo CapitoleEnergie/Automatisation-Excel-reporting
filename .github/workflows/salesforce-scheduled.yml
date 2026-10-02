@@ -2,8 +2,10 @@ name: Salesforce reporting - scheduled
 
 on:
   schedule:
-    # UTC large window. Guard below enforces 09:00-19:35 Europe/Paris.
-    - cron: "7,37 6-18 * * 1-5"
+    # Hourly at minute 17 UTC: away from the GitHub high-load start of each hour.
+    # Hours 07-18 UTC cover 09:17-19:17 Paris in summer (UTC+2) and winter (UTC+1);
+    # the guard below enforces 09:00-19:35 Europe/Paris.
+    - cron: "17 7-18 * * 1-5"
 
 permissions:
   contents: read
