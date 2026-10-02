@@ -1,0 +1,89 @@
+name: Salesforce reporting - scheduled
+
+on:
+  schedule:
+    # UTC large window. Guard below enforces 09:00-19:35 Europe/Paris.
+    - cron: "7,37 6-18 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reporting-excel
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Garde horaire Europe/Paris
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - name: Verifier la plage horaire
+        id: g
+        run: |
+          H=$(TZ=Europe/Paris date +%H%M)
+          echo "Heure Paris : $H"
+          if [ "$H" -ge 900 ] && [ "$H" -le 1935 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Hors plage 09:00-19:35 Paris : arret sans action."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  extract:
+    needs: guard
+    if: ${{ needs.guard.outputs.run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PERIOD: current
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Salesforce extractor
+        env:
+          SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_CLIENT_SECRET: ${{ secrets.SF_CLIENT_SECRET }}
+          SF_API_VERSION: ${{ vars.SF_API_VERSION || 'v66.0' }}
+        run: python -m src.main --period "$PERIOD"
+
+      - name: Build Excel dry-run plan
+        run: python -m src.excel_plan
+
+      - name: Send plan to Power Automate
+        env:
+          POWER_AUTOMATE_URL: ${{ secrets.POWER_AUTOMATE_URL }}
+        run: |
+          test -n "$POWER_AUTOMATE_URL" || (echo "Missing POWER_AUTOMATE_URL secret" && exit 1)
+          RESPONSE=$(curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Content-Type: application/json" \
+            --data-binary @excel-write-plan.json \
+            "$POWER_AUTOMATE_URL")
+          echo "Power Automate response:"
+          echo "$RESPONSE"
+
+      - name: Upload results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: salesforce-results-scheduled
+          path: |
+            results.json
+            excel-write-plan.json
+          if-no-files-found: ignore
+          retention-days: 7
