@@ -6,6 +6,19 @@ on:
     # Hours 07-18 UTC cover 09:17-19:17 Paris in summer (UTC+2) and winter (UTC+1);
     # the guard below enforces 09:00-19:35 Europe/Paris.
     - cron: "17 7-18 * * 1-5"
+  # Declenchement par Power Automate (API GitHub, recurrence toutes les heures a 9h17...19h17 Paris),
+  # ou a la main. Le planificateur GitHub ci-dessus reste en secours. Pas de garde horaire dans ce cas.
+  workflow_dispatch:
+    inputs:
+      period:
+        description: Exercice a extraire
+        required: true
+        default: current
+        type: choice
+        options:
+          - current
+          - previous
+          - both
 
 permissions:
   contents: read
@@ -26,8 +39,9 @@ jobs:
         id: g
         run: |
           H=$(TZ=Europe/Paris date +%H%M)
-          echo "Heure Paris : $H"
-          if [ "$H" -ge 900 ] && [ "$H" -le 1935 ]; then
+          echo "Heure Paris : $H (declenchement : $GITHUB_EVENT_NAME)"
+          # La garde ne concerne que le cron GitHub ; Power Automate et les lancements manuels passent toujours.
+          if [ "$GITHUB_EVENT_NAME" != "schedule" ] || { [ "$H" -ge 900 ] && [ "$H" -le 1935 ]; }; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "Hors plage 09:00-19:35 Paris : arret sans action."
@@ -40,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PERIOD: current
+      PERIOD: ${{ inputs.period || 'current' }}
 
     steps:
       - name: Checkout
