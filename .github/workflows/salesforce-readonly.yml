@@ -1,13 +1,6 @@
-name: Salesforce readonly extract
+name: Salesforce readonly extract - manual
 
 on:
-  schedule:
-    # UTC. Runs decales pour eviter les pics GitHub en debut d'heure.
-    # La garde filtre ensuite sur l'heure Europe/Paris.
-    - cron: "7,37 6-18 * * 1-5"
-    # Dernier run cible 19:30 Paris : ete (UTC+2) et hiver (UTC+1).
-    - cron: "30 17 * * 1-5"
-    - cron: "30 18 * * 1-5"
   workflow_dispatch:
     inputs:
       period:
@@ -29,37 +22,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  guard:
-    name: Garde horaire Europe/Paris
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    outputs:
-      run: ${{ steps.g.outputs.run }}
-    steps:
-      - name: Verifier la plage horaire
-        id: g
-        run: |
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "Lancement manuel : on continue."
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          H=$(TZ=Europe/Paris date +%H%M)
-          echo "Heure Paris : $H"
-          if [ "$H" -ge 900 ] && [ "$H" -le 1934 ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Hors plage 09:00-19:34 Paris : arret sans action."
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
   extract:
-    needs: guard
-    if: ${{ needs.guard.outputs.run == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PERIOD: ${{ github.event_name == 'schedule' && 'current' || inputs.period }}
+      PERIOD: ${{ inputs.period }}
 
     steps:
       - name: Checkout
